@@ -1,0 +1,41 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.env
+# IDE
+.vscode/
+
+runs/
+
+*.pt
+*.pth
+*.onnx
+*.bin
+
+*.log
+.DS_Store
+
+.deepeval/
+
+eval/food_eval_ragas_results.csv
+eval/food_eval_rule_results.csv
+eval/food_eval_rule_results.json
+eval/food_eval_summary.json
+eval/food_eval_ragas_input.json
+eval/food_eval_deepeval_summary.json
+
+stop.txt
+pause.txt
+
+# Raw source data + intermediate pipeline stages: regenerable via pipeline/*.py,
+# not tracked in git to keep the repo lightweight. Only data/datafood.csv (the
+# final pipeline output) is committed.
+data/recipes-with-nutrition.csv
+data/recipes_enriched_partial.csv
+data/test.csv
+data/foodfacts.csv
+data/foodsfactsfinal.csv
+data/cleanfood.csv
+data/label_cleanup_audit.csv

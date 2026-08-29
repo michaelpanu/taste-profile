@@ -1,0 +1,1601 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "created_at": "2026-05-06T22:30:30.040133Z",
+    "source_dataset": "cleanfood.csv",
+    "intended_backend_records": 15005,
+    "case_count": 50,
+    "notes": [
+      "Cases are designed for the current food recommendation pipeline with parser, Chroma retrieval, optional follow-ups, and answer generation.",
+      "Use expected_behavior='follow_up' cases outside RAGAS; score them with custom follow-up checks.",
+      "Use expected_behavior='recommend' cases with RAGAS plus custom rule checks for filters, allergies, negative constraints, and hallucinated recipe names.",
+      "References describe behavior/criteria, not necessarily exact recipe names, because the app must only recommend retrieved cleanfood.csv records."
+    ]
+  },
+  "global_answer_requirements": {
+    "must_only_recommend_retrieved_foods": true,
+    "must_not_invent_recipe_names": true,
+    "must_acknowledge_weak_matches_when_distance_is_high": true,
+    "followup_cases_skip_ragas": true,
+    "recommendation_cases_use_ragas_and_custom_checks": true
+  },
+  "custom_check_definitions": {
+    "no_hallucinated_food_names": "Every recipe name mentioned in the final answer must appear in retrieved_foods.",
+    "explicit_cuisine_preserved": "If cuisine_was_explicit is true, all returned foods should preserve cuisine_type; relaxed search must not remove cuisine.",
+    "healthy_not_in_semantic_query": "The parser should set healthy=true but should not keep healthy/nutritious/balanced as semantic search terms.",
+    "similarity_uses_ingredients_profile": "For similar-to-last-food queries, semantic_query should use the previous food's document/ingredients/flavor profile, not only recipe_name.",
+    "no_nut_terms_in_answer_or_context": "No answer or retrieved context should contain peanut/tree nut terms when nut allergy is requested.",
+    "negative_constraint_no_pad_thai": "No retrieved recipe names or answer mentions should contain Pad Thai when the query says not Pad Thai.",
+    "flavor_or_logic_used": "Queries with flavor OR should produce a Chroma $or over the flavor metadata fields rather than requiring all flavors."
+  },
+  "cases": [
+    {
+      "id": 1,
+      "category": "Clarification",
+      "question": "Could you give me some healthy dinner options?",
+      "expected_behavior": "follow_up",
+      "reference_behavior": "Ask a follow-up asking for a main ingredient, cuisine, dish type, or flavor instead of embedding 'healthy' as the main semantic query.",
+      "ragas": {
+        "use_for_ragas": false,
+        "ground_truth": "Ask a follow-up asking for a main ingredient, cuisine, dish type, or flavor instead of embedding 'healthy' as the main semantic query."
+      },
+      "parser_expectations": {
+        "healthy": true,
+        "meal_type": "lunch/dinner",
+        "semantic_query_should_be_empty_or_minimal": true,
+        "semantic_query_must_not_contain": [
+          "healthy",
+          "nutritious",
+          "balanced"
+        ]
+      },
+      "retrieval_expectations": {},
+      "answer_expectations": {
+        "must_ask_for_any_of": [
+          "ingredient",
+          "cuisine",
+          "flavor",
+          "dish type"
+        ],
+        "must_not_recommend_foods": true
+      },
+      "custom_checks": []
+    },
+    {
+      "id": 2,
+      "category": "Clarification",
+      "question": "I want something tasty for dinner",
+      "expected_behavior": "follow_up",
+      "reference_behavior": "Ask what main ingredient, cuisine, dish type, or flavor the user wants because the request is too vague.",
+      "ragas": {
+        "use_for_ragas": false,
+        "ground_truth": "Ask what main ingredient, cuisine, dish type, or flavor the user wants because the request is too vague."
+      },
+      "parser_expectations": {
+        "meal_type": "lunch/dinner",
+        "semantic_query_should_be_empty_or_minimal": true
+      },
+      "retrieval_expectations": {},
+      "answer_expectations": {
+        "must_ask_for_any_of": [
+          "ingredient",
+          "cuisine",
+          "flavor"
+        ]
+      },
+      "custom_checks": []
+    },
+    {
+      "id": 3,
+      "category": "Clarification",
+      "question": "Give me a vegetarian meal",
+      "expected_behavior": "follow_up",
+      "reference_behavior": "Preserve the vegetarian constraint and ask what kind of vegetarian meal or ingredients the user wants.",
+      "ragas": {
+        "use_for_ragas": false,
+        "ground_truth": "Preserve the vegetarian constraint and ask what kind of vegetarian meal or ingredients the user wants."
+      },
+      "parser_expectations": {
+        "health_label": "Vegetarian",
+        "semantic_query_should_be_empty_or_minimal": true
+      },
+      "retrieval_expectations": {},
+      "answer_expectations": {
+        "followup_examples_should_be_diet_safe": true,
+        "must_not_suggest": [
+          "chicken",
+          "salmon",
+          "beef",
+          "pork"
+        ]
+      },
+      "custom_checks": []
+    },
+    {
+      "id": 4,
+      "category": "Clarification",
+      "question": "I need a healthy vegan dinner",
+      "expected_behavior": "follow_up",
+      "reference_behavior": "Preserve vegan and dinner constraints, ask for vegan-safe ingredients/flavors/cuisine.",
+      "ragas": {
+        "use_for_ragas": false,
+        "ground_truth": "Preserve vegan and dinner constraints, ask for vegan-safe ingredients/flavors/cuisine."
+      },
+      "parser_expectations": {
+        "health_label": "Vegan",
+        "meal_type": "lunch/dinner",
+        "healthy": true,
+        "semantic_query_should_be_empty_or_minimal": true
+      },
+      "retrieval_expectations": {},
+      "answer_expectations": {
+        "followup_examples_should_be_diet_safe": true,
+        "must_not_suggest": [
+          "eggs",
+          "cheese",
+          "chicken",
+          "salmon"
+        ]
+      },
+      "custom_checks": []
+    },
+    {
+      "id": 5,
+      "category": "Clarification",
+      "question": "Can you find a healthy breakfast?",
+      "expected_behavior": "follow_up",
+      "reference_behavior": "Ask for a breakfast ingredient, style, or flavor because healthy + meal type is not enough.",
+      "ragas": {
+        "use_for_ragas": false,
+        "ground_truth": "Ask for a breakfast ingredient, style, or flavor because healthy + meal type is not enough."
+      },
+      "parser_expectations": {
+        "healthy": true,
+        "meal_type": "breakfast",
+        "semantic_query_should_be_empty_or_minimal": true
+      },
+      "retrieval_expectations": {},
+      "answer_expectations": {},
+      "custom_checks": []
+    },
+    {
+      "id": 6,
+      "category": "Clarification",
+      "question": "Something quick and easy please",
+      "expected_behavior": "follow_up",
+      "reference_behavior": "Ask for meal type, ingredients, or style because quick/easy are vague and not represented by strong metadata.",
+      "ragas": {
+        "use_for_ragas": false,
+        "ground_truth": "Ask for meal type, ingredients, or style because quick/easy are vague and not represented by strong metadata."
+      },
+      "parser_expectations": {
+        "semantic_query_should_be_empty_or_minimal": true
+      },
+      "retrieval_expectations": {},
+      "answer_expectations": {},
+      "custom_checks": []
+    },
+    {
+      "id": 7,
+      "category": "Clarification",
+      "question": "I want a snack",
+      "expected_behavior": "follow_up",
+      "reference_behavior": "Ask for flavor, ingredient, or dietary preference rather than returning arbitrary snacks.",
+      "ragas": {
+        "use_for_ragas": false,
+        "ground_truth": "Ask for flavor, ingredient, or dietary preference rather than returning arbitrary snacks."
+      },
+      "parser_expectations": {
+        "meal_type": "snack",
+        "semantic_query_should_be_empty_or_minimal": true
+      },
+      "retrieval_expectations": {},
+      "answer_expectations": {},
+      "custom_checks": []
+    },
+    {
+      "id": 8,
+      "category": "Clarification",
+      "question": "I want a healthy American spicy dinner",
+      "expected_behavior": "follow_up",
+      "reference_behavior": "Because this has filters but no ingredient/dish concept, ask for an ingredient or dish type; do not ask again later in the same turn.",
+      "ragas": {
+        "use_for_ragas": false,
+        "ground_truth": "Because this has filters but no ingredient/dish concept, ask for an ingredient or dish type; do not ask again later in the same turn."
+      },
+      "parser_expectations": {
+        "healthy": true,
+        "meal_type": "lunch/dinner",
+        "cuisine_type": "american",
+        "cuisine_was_explicit": true,
+        "spiciness": true,
+        "semantic_query_should_be_empty_or_minimal": true
+      },
+      "retrieval_expectations": {},
+      "answer_expectations": {
+        "only_one_followup_per_turn": true
+      },
+      "custom_checks": []
+    },
+    {
+      "id": 9,
+      "category": "Dietary Restrictions",
+      "question": "I want something spicy and vegetarian for dinner tonight",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return spicy vegetarian lunch/dinner foods only; explain 2-5 retrieved dataset foods without inventing recipes.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return spicy vegetarian lunch/dinner foods only; explain 2-5 retrieved dataset foods without inventing recipes."
+      },
+      "parser_expectations": {
+        "health_label": "Vegetarian",
+        "meal_type": "lunch/dinner",
+        "spiciness": true
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "health_labels_contains": "Vegetarian",
+          "meal_type_contains": "lunch/dinner",
+          "spiciness": true
+        },
+        "min_results": 2
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_vegetarian",
+        "all_results_spicy",
+        "no_hallucinated_food_names"
+      ]
+    },
+    {
+      "id": 10,
+      "category": "Dietary Restrictions",
+      "question": "I need a vegan meal that still feels hearty and satisfying",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return vegan foods with hearty/savory/filling descriptions when available; do not include animal-based items.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return vegan foods with hearty/savory/filling descriptions when available; do not include animal-based items."
+      },
+      "parser_expectations": {
+        "health_label": "Vegan",
+        "semantic_query_contains_any": [
+          "hearty",
+          "satisfying"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "health_labels_contains": "Vegan"
+        },
+        "must_exclude_terms": [
+          "chicken",
+          "beef",
+          "pork",
+          "bacon",
+          "shrimp",
+          "salmon",
+          "cheese",
+          "egg"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_vegan",
+        "no_animal_ingredients_in_context"
+      ]
+    },
+    {
+      "id": 11,
+      "category": "Dietary Restrictions",
+      "question": "What can I eat that is gluten-free and still tasty?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return gluten-free dataset foods and mention they are gluten-free; avoid wheat/gluten cautions.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return gluten-free dataset foods and mention they are gluten-free; avoid wheat/gluten cautions."
+      },
+      "parser_expectations": {
+        "health_label": "Gluten-Free",
+        "semantic_query_must_not_contain": [
+          "gluten-free",
+          "gluten free"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "health_labels_contains": "Gluten-Free"
+        },
+        "must_not_have_cautions": [
+          "Gluten",
+          "Wheat"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_gluten_free",
+        "no_wheat_or_gluten_cautions"
+      ]
+    },
+    {
+      "id": 12,
+      "category": "Dietary Restrictions",
+      "question": "Give me dairy-free options that are creamy and comforting",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return dairy-free foods with creamy/comforting semantic match when available; do not include milk/cheese/butter-heavy contexts.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return dairy-free foods with creamy/comforting semantic match when available; do not include milk/cheese/butter-heavy contexts."
+      },
+      "parser_expectations": {
+        "health_label": "Dairy-Free",
+        "semantic_query_contains_any": [
+          "creamy",
+          "comforting"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "health_labels_contains": "Dairy-Free"
+        },
+        "must_exclude_terms": [
+          "milk",
+          "cheese",
+          "butter",
+          "cream",
+          "yogurt"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_dairy_free"
+      ]
+    },
+    {
+      "id": 13,
+      "category": "Dietary Restrictions",
+      "question": "I am allergic to nuts, what safe and delicious meals can I have?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Treat nut allergy as a hard safety constraint; retrieve only peanut-free and tree-nut-free options and exclude nut terms from answer/context.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Treat nut allergy as a hard safety constraint; retrieve only peanut-free and tree-nut-free options and exclude nut terms from answer/context."
+      },
+      "parser_expectations": {
+        "health_label_any": [
+          "Peanut-Free",
+          "Tree-Nut-Free"
+        ],
+        "caution_to_exclude_any": [
+          "Peanut",
+          "Tree Nuts"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "health_labels_contains_all": [
+            "Peanut-Free",
+            "Tree-Nut-Free"
+          ]
+        },
+        "must_exclude_terms": [
+          "peanut",
+          "peanuts",
+          "cashew",
+          "almond",
+          "walnut",
+          "pecan",
+          "pistachio",
+          "hazelnut",
+          "nutella",
+          "nuts"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "no_nut_terms_in_answer_or_context",
+        "all_results_peanut_and_tree_nut_free"
+      ]
+    },
+    {
+      "id": 14,
+      "category": "Dietary Restrictions",
+      "question": "I have a shellfish allergy but want something Asian and savory",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return Asian/similar cuisine savory foods that are shellfish-free; no shrimp/crab/lobster/shellfish contexts.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return Asian/similar cuisine savory foods that are shellfish-free; no shrimp/crab/lobster/shellfish contexts."
+      },
+      "parser_expectations": {
+        "caution_to_exclude": "Shellfish",
+        "cuisine_type_any": [
+          "asian",
+          "japanese",
+          "chinese",
+          "south east asian"
+        ],
+        "savoriness": true
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "health_labels_contains": "Shellfish-Free"
+        },
+        "must_exclude_terms": [
+          "shrimp",
+          "prawn",
+          "crab",
+          "lobster",
+          "shellfish"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_shellfish_free"
+      ]
+    },
+    {
+      "id": 15,
+      "category": "Dietary Restrictions",
+      "question": "I am vegetarian but craving something like chicken",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Apply Vegetarian as hard filter; say exact vegetarian chicken may not exist if matches are weak; never return actual chicken dishes.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Apply Vegetarian as hard filter; say exact vegetarian chicken may not exist if matches are weak; never return actual chicken dishes."
+      },
+      "parser_expectations": {
+        "health_label": "Vegetarian",
+        "semantic_query_contains": "chicken",
+        "possible_contradiction": true
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "health_labels_contains": "Vegetarian"
+        },
+        "must_exclude_terms": [
+          "chicken breast",
+          "chicken thigh",
+          "cooked chicken",
+          "grilled chicken"
+        ]
+      },
+      "answer_expectations": {
+        "should_acknowledge_approximate_if_weak": true
+      },
+      "custom_checks": [
+        "no_actual_chicken_when_vegetarian"
+      ]
+    },
+    {
+      "id": 16,
+      "category": "Dietary Restrictions",
+      "question": "I want something kosher for dinner",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Prefer cuisine_type kosher or clearly kosher-compatible records; avoid pork and shellfish.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Prefer cuisine_type kosher or clearly kosher-compatible records; avoid pork and shellfish."
+      },
+      "parser_expectations": {
+        "meal_type": "lunch/dinner",
+        "semantic_query_contains_any": [
+          "kosher"
+        ]
+      },
+      "retrieval_expectations": {
+        "preferred_metadata_any": {
+          "cuisine_type_contains": "kosher"
+        },
+        "must_exclude_terms": [
+          "pork",
+          "bacon",
+          "ham",
+          "shrimp",
+          "shellfish",
+          "lobster",
+          "crab"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "no_pork_or_shellfish"
+      ]
+    },
+    {
+      "id": 17,
+      "category": "Dietary Restrictions",
+      "question": "I cannot eat eggs. What savory meals are safe?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Use Egg-Free as a hard constraint; exclude egg-heavy recipes and Egg cautions.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Use Egg-Free as a hard constraint; exclude egg-heavy recipes and Egg cautions."
+      },
+      "parser_expectations": {
+        "health_label": "Egg-Free",
+        "savoriness": true
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "health_labels_contains": "Egg-Free"
+        },
+        "must_not_have_cautions": [
+          "Eggs"
+        ],
+        "must_exclude_terms": [
+          "egg",
+          "eggs",
+          "omelet",
+          "frittata"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_egg_free"
+      ]
+    },
+    {
+      "id": 18,
+      "category": "Dietary Restrictions",
+      "question": "No soy please, but I want a vegetarian dinner",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return vegetarian soy-free dinner options; avoid tofu, tempeh, soy sauce, and soy cautions.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return vegetarian soy-free dinner options; avoid tofu, tempeh, soy sauce, and soy cautions."
+      },
+      "parser_expectations": {
+        "health_label": "Vegetarian",
+        "caution_to_exclude": "Soy",
+        "meal_type": "lunch/dinner"
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "health_labels_contains_all": [
+            "Vegetarian",
+            "Soy-Free"
+          ],
+          "meal_type_contains": "lunch/dinner"
+        },
+        "must_exclude_terms": [
+          "tofu",
+          "tempeh",
+          "soy sauce",
+          "soy"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_vegetarian_and_soy_free"
+      ]
+    },
+    {
+      "id": 19,
+      "category": "Flavor Profile",
+      "question": "I prefer mild, non-spicy food, any suggestions?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return non-spicy foods only; no spicy recipes or descriptions claiming heat.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return non-spicy foods only; no spicy recipes or descriptions claiming heat."
+      },
+      "parser_expectations": {
+        "spiciness": false
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "spiciness": false
+        },
+        "must_exclude_terms": [
+          "spicy",
+          "hot sauce",
+          "chili heat",
+          "kick of heat"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_not_spicy"
+      ]
+    },
+    {
+      "id": 20,
+      "category": "Flavor Profile",
+      "question": "I want something sweet and savory combined, like teriyaki",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Require both sweetness and savoriness; return sweet-savory foods such as teriyaki-like options from the dataset.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Require both sweetness and savoriness; return sweet-savory foods such as teriyaki-like options from the dataset."
+      },
+      "parser_expectations": {
+        "flavor_all_of": [
+          "sweet",
+          "savory"
+        ],
+        "semantic_query_contains_any": [
+          "teriyaki"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "sweetness": true,
+          "savoriness": true
+        }
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_sweet_and_savory"
+      ]
+    },
+    {
+      "id": 21,
+      "category": "Flavor Profile",
+      "question": "Find me something spicy or sour for dinner",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Use OR flavor filtering: foods may be spicy or sour; do not require both.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Use OR flavor filtering: foods may be spicy or sour; do not require both."
+      },
+      "parser_expectations": {
+        "flavor_any_of": [
+          "spicy",
+          "sour"
+        ],
+        "meal_type": "lunch/dinner"
+      },
+      "retrieval_expectations": {
+        "required_metadata_any": [
+          {
+            "spiciness": true
+          },
+          {
+            "sourness": true
+          }
+        ],
+        "meal_type_contains": "lunch/dinner"
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "flavor_or_logic_used"
+      ]
+    },
+    {
+      "id": 22,
+      "category": "Flavor Profile",
+      "question": "I want something spicy and savory, preferably Asian",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Require both spicy and savory with an Asian-related cuisine if possible.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Require both spicy and savory with an Asian-related cuisine if possible."
+      },
+      "parser_expectations": {
+        "flavor_all_of": [
+          "spicy",
+          "savory"
+        ],
+        "cuisine_type_any": [
+          "asian",
+          "japanese",
+          "chinese",
+          "south east asian"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "spiciness": true,
+          "savoriness": true
+        },
+        "preferred_metadata_any": {
+          "cuisine_type_contains_any": [
+            "asian",
+            "japanese",
+            "chinese",
+            "south east asian"
+          ]
+        }
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "all_results_spicy_and_savory"
+      ]
+    },
+    {
+      "id": 23,
+      "category": "Flavor Profile",
+      "question": "I love tangy and sour foods like pickles and lemon, what should I try?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Map tangy to sour and retrieve sour/tangy options; answer only with dataset foods.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Map tangy to sour and retrieve sour/tangy options; answer only with dataset foods."
+      },
+      "parser_expectations": {
+        "sourness": true,
+        "semantic_query_contains_any": [
+          "pickles",
+          "lemon",
+          "tangy"
+        ]
+      },
+      "retrieval_expectations": {
+        "preferred_metadata_any": {
+          "sourness": true
+        },
+        "must_include_or_context_terms": [
+          "pickle",
+          "lemon",
+          "vinegar",
+          "tangy",
+          "caper"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "sour_or_tangy_context"
+      ]
+    },
+    {
+      "id": 24,
+      "category": "Flavor Profile",
+      "question": "I am obsessed with umami flavors, mushrooms and soy sauce type dishes",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Map umami to savory and search mushroom/soy sauce ideas; avoid hallucinating dishes.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Map umami to savory and search mushroom/soy sauce ideas; avoid hallucinating dishes."
+      },
+      "parser_expectations": {
+        "savoriness": true,
+        "semantic_query_contains_any": [
+          "mushrooms",
+          "soy sauce"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "savoriness": true
+        },
+        "must_include_or_context_terms": [
+          "mushroom",
+          "soy",
+          "miso",
+          "shiitake",
+          "umami"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "savory_umami_context"
+      ]
+    },
+    {
+      "id": 25,
+      "category": "Flavor Profile",
+      "question": "What are some really rich and indulgent comfort foods?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Search rich/indulgent/comforting terms and prefer fattiness/richness; include both sweet or savory if dataset retrieves them.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Search rich/indulgent/comforting terms and prefer fattiness/richness; include both sweet or savory if dataset retrieves them."
+      },
+      "parser_expectations": {
+        "fattiness": true,
+        "semantic_query_contains_any": [
+          "comfort",
+          "indulgent"
+        ]
+      },
+      "retrieval_expectations": {
+        "preferred_metadata_any": {
+          "fattiness": true
+        },
+        "min_results": 2
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "no_hallucinated_food_names"
+      ]
+    },
+    {
+      "id": 26,
+      "category": "Flavor Profile",
+      "question": "I like smoky and charred flavors, what dishes have that?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Use smoky/charred as semantic terms, not hard metadata; return grilled/smoked/roasted dataset foods.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Use smoky/charred as semantic terms, not hard metadata; return grilled/smoked/roasted dataset foods."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_any": [
+          "smoky",
+          "charred",
+          "grilled",
+          "smoked"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_include_or_context_terms": [
+          "grilled",
+          "smoked",
+          "charred",
+          "roasted",
+          "bbq",
+          "burnt"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "smoky_charred_context"
+      ]
+    },
+    {
+      "id": 27,
+      "category": "Flavor Profile",
+      "question": "I want salty or rich pasta",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Use OR flavor filtering for salty or rich/fatty, with pasta as semantic query.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Use OR flavor filtering for salty or rich/fatty, with pasta as semantic query."
+      },
+      "parser_expectations": {
+        "semantic_query_contains": "pasta",
+        "flavor_any_of": [
+          "salty",
+          "rich_or_fatty"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_any": [
+          {
+            "saltiness": true
+          },
+          {
+            "fattiness": true
+          }
+        ],
+        "must_include_or_context_terms": [
+          "pasta",
+          "spaghetti",
+          "fettuccine",
+          "penne",
+          "rigatoni"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "flavor_or_logic_used"
+      ]
+    },
+    {
+      "id": 28,
+      "category": "Ingredient-Based",
+      "question": "I have chicken, garlic, and lemon in my fridge, what can I make?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return recipes featuring chicken, garlic, and lemon or close matches.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return recipes featuring chicken, garlic, and lemon or close matches."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_all": [
+          "chicken",
+          "garlic",
+          "lemon"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_include_or_context_terms": [
+          "chicken"
+        ],
+        "preferred_context_terms": [
+          "garlic",
+          "lemon"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "core_ingredients_present"
+      ]
+    },
+    {
+      "id": 29,
+      "category": "Ingredient-Based",
+      "question": "I only have eggs, cheese, and spinach at home, what can I cook?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return egg/cheese/spinach dishes such as omelets, baked eggs, or frittata-like options from dataset.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return egg/cheese/spinach dishes such as omelets, baked eggs, or frittata-like options from dataset."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_all": [
+          "eggs",
+          "cheese",
+          "spinach"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_include_or_context_terms": [
+          "egg",
+          "spinach"
+        ],
+        "preferred_context_terms": [
+          "cheese",
+          "cottage cheese",
+          "parmesan"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "ingredient_overlap"
+      ]
+    },
+    {
+      "id": 30,
+      "category": "Ingredient-Based",
+      "question": "I have salmon, dill, and capers, what meal can I make?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return salmon dishes with dill/capers/lemony or tangy profiles.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return salmon dishes with dill/capers/lemony or tangy profiles."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_all": [
+          "salmon",
+          "dill",
+          "capers"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_include_or_context_terms": [
+          "salmon"
+        ],
+        "preferred_context_terms": [
+          "dill",
+          "caper",
+          "capers"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "ingredient_overlap"
+      ]
+    },
+    {
+      "id": 31,
+      "category": "Ingredient-Based",
+      "question": "I have ground beef, onions, and tomatoes, give me some dinner ideas",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return dinner ideas using ground beef, onion, and tomato, such as chili, stuffed onions, bolognese-like foods.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return dinner ideas using ground beef, onion, and tomato, such as chili, stuffed onions, bolognese-like foods."
+      },
+      "parser_expectations": {
+        "meal_type": "lunch/dinner",
+        "semantic_query_contains_all": [
+          "ground beef",
+          "onions",
+          "tomatoes"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_include_or_context_terms": [
+          "beef"
+        ],
+        "preferred_context_terms": [
+          "onion",
+          "tomato",
+          "tomatoes"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "ingredient_overlap"
+      ]
+    },
+    {
+      "id": 32,
+      "category": "Ingredient-Based",
+      "question": "What can I make with tofu, ginger, and soy sauce?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return tofu dishes with ginger/soy sauce profiles; usually Asian-inspired.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return tofu dishes with ginger/soy sauce profiles; usually Asian-inspired."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_all": [
+          "tofu",
+          "ginger",
+          "soy sauce"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_include_or_context_terms": [
+          "tofu"
+        ],
+        "preferred_context_terms": [
+          "ginger",
+          "soy"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "ingredient_overlap"
+      ]
+    },
+    {
+      "id": 33,
+      "category": "Ingredient-Based",
+      "question": "I have leftover rice, vegetables, and eggs",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return fried rice or rice-with-egg dishes from the dataset.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return fried rice or rice-with-egg dishes from the dataset."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_all": [
+          "rice",
+          "vegetables",
+          "eggs"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_include_or_context_terms": [
+          "rice"
+        ],
+        "preferred_context_terms": [
+          "egg",
+          "vegetable",
+          "fried rice"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "ingredient_overlap"
+      ]
+    },
+    {
+      "id": 34,
+      "category": "Ingredient-Based",
+      "question": "Can you make something with pumpkin and turkey?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return pumpkin/turkey recipes such as pumpkin turkey chili if available.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return pumpkin/turkey recipes such as pumpkin turkey chili if available."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_all": [
+          "pumpkin",
+          "turkey"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_include_or_context_terms": [
+          "pumpkin",
+          "turkey"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "ingredient_overlap"
+      ]
+    },
+    {
+      "id": 35,
+      "category": "Ingredient-Based",
+      "question": "I want chickpeas and tomatoes in a savory meal",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return savory chickpea/tomato dishes; prefer lunch/dinner mains.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return savory chickpea/tomato dishes; prefer lunch/dinner mains."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_all": [
+          "chickpeas",
+          "tomatoes"
+        ],
+        "savoriness": true
+      },
+      "retrieval_expectations": {
+        "preferred_context_terms": [
+          "chickpea",
+          "tomato"
+        ],
+        "required_metadata_all": {
+          "savoriness": true
+        }
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "ingredient_overlap"
+      ]
+    },
+    {
+      "id": 36,
+      "category": "Cuisine Type",
+      "question": "I want to explore Japanese cuisine, what should I try first?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return approachable Japanese cuisine records from dataset; preserve explicit Japanese filter.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return approachable Japanese cuisine records from dataset; preserve explicit Japanese filter."
+      },
+      "parser_expectations": {
+        "cuisine_type": "japanese",
+        "cuisine_was_explicit": true
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "cuisine_type_contains": "japanese"
+        },
+        "forbidden_relaxations": [
+          "without the cuisine filter"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "explicit_cuisine_preserved"
+      ]
+    },
+    {
+      "id": 37,
+      "category": "Cuisine Type",
+      "question": "I love Italian food, what are some lesser-known Italian dishes?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return Italian foods but avoid over-focusing on pizza/pasta if possible; never invent non-dataset dishes.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return Italian foods but avoid over-focusing on pizza/pasta if possible; never invent non-dataset dishes."
+      },
+      "parser_expectations": {
+        "cuisine_type": "italian",
+        "cuisine_was_explicit": true,
+        "semantic_query_contains_any": [
+          "lesser-known",
+          "lesser known"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "cuisine_type_contains": "italian"
+        },
+        "diversity_preference": "avoid_same_recipe_family"
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "explicit_cuisine_preserved",
+        "avoid_all_pizza_variants"
+      ]
+    },
+    {
+      "id": 38,
+      "category": "Cuisine Type",
+      "question": "What are some authentic Mexican dishes beyond tacos?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return Mexican dataset foods that do not have taco in the recipe name or context if possible.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return Mexican dataset foods that do not have taco in the recipe name or context if possible."
+      },
+      "parser_expectations": {
+        "cuisine_type": "mexican",
+        "cuisine_was_explicit": true,
+        "semantic_query_contains_any": [
+          "authentic",
+          "beyond tacos"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "cuisine_type_contains": "mexican"
+        },
+        "must_exclude_terms": [
+          "taco",
+          "tacos"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "explicit_cuisine_preserved",
+        "negative_constraint_no_tacos"
+      ]
+    },
+    {
+      "id": 39,
+      "category": "Cuisine Type",
+      "question": "I want to try Indian food for the first time, what is a good starting point?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return beginner-friendly Indian foods from dataset; preserve Indian even if matches are weak.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return beginner-friendly Indian foods from dataset; preserve Indian even if matches are weak."
+      },
+      "parser_expectations": {
+        "cuisine_type": "indian",
+        "cuisine_was_explicit": true
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "cuisine_type_contains": "indian"
+        },
+        "forbidden_relaxations": [
+          "without the cuisine filter"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "explicit_cuisine_preserved"
+      ]
+    },
+    {
+      "id": 40,
+      "category": "Cuisine Type",
+      "question": "Recommend me some Thai dishes that are not pad Thai",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Map Thai to south east asian if needed, but exclude Pad Thai variants.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Map Thai to south east asian if needed, but exclude Pad Thai variants."
+      },
+      "parser_expectations": {
+        "cuisine_type_any": [
+          "south east asian",
+          "thai"
+        ],
+        "cuisine_was_explicit": true,
+        "semantic_query_must_not_contain": [
+          "pad thai"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_any": [
+          {
+            "cuisine_type_contains": "south east asian"
+          },
+          {
+            "cuisine_type_contains": "thai"
+          }
+        ],
+        "must_exclude_terms": [
+          "pad thai"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "negative_constraint_no_pad_thai"
+      ]
+    },
+    {
+      "id": 41,
+      "category": "Cuisine Type",
+      "question": "Give me Mediterranean vegetarian dinners",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return Mediterranean vegetarian lunch/dinner foods only.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return Mediterranean vegetarian lunch/dinner foods only."
+      },
+      "parser_expectations": {
+        "cuisine_type": "mediterranean",
+        "cuisine_was_explicit": true,
+        "health_label": "Vegetarian",
+        "meal_type": "lunch/dinner"
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "cuisine_type_contains": "mediterranean",
+          "health_labels_contains": "Vegetarian",
+          "meal_type_contains": "lunch/dinner"
+        }
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "explicit_cuisine_preserved",
+        "all_results_vegetarian"
+      ]
+    },
+    {
+      "id": 42,
+      "category": "Cuisine Type",
+      "question": "Find me Italian food similar to the last dish I liked",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Use the previous top food's ingredients/flavor document as semantic query, not just the recipe name; preserve explicit Italian cuisine.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Use the previous top food's ingredients/flavor document as semantic query, not just the recipe name; preserve explicit Italian cuisine."
+      },
+      "parser_expectations": {
+        "cuisine_type": "italian",
+        "cuisine_was_explicit": true
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "cuisine_type_contains": "italian"
+        },
+        "semantic_query_should_use_last_food_profile": true,
+        "forbidden_relaxations": [
+          "without the cuisine filter"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "similarity_uses_ingredients_profile",
+        "explicit_cuisine_preserved"
+      ]
+    },
+    {
+      "id": 43,
+      "category": "Cuisine Type",
+      "question": "What are some Indian foods with a similar taste profile to this?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Use last food profile for similarity; preserve explicit Indian cuisine even if matches are weak; do not invent Indian dishes not retrieved.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Use last food profile for similarity; preserve explicit Indian cuisine even if matches are weak; do not invent Indian dishes not retrieved."
+      },
+      "parser_expectations": {
+        "cuisine_type": "indian",
+        "cuisine_was_explicit": true
+      },
+      "retrieval_expectations": {
+        "required_metadata_all": {
+          "cuisine_type_contains": "indian"
+        },
+        "semantic_query_should_use_last_food_profile": true,
+        "allow_weak_matches": true,
+        "forbidden_relaxations": [
+          "without the cuisine filter"
+        ]
+      },
+      "answer_expectations": {
+        "must_only_mention_retrieved_foods": true,
+        "should_acknowledge_approximate_if_weak": true
+      },
+      "custom_checks": [
+        "no_hallucinated_food_names",
+        "explicit_cuisine_preserved"
+      ]
+    },
+    {
+      "id": 44,
+      "category": "Cuisine Type",
+      "question": "Show me other types of food that are not soups but taste similar",
+      "expected_behavior": "recommend",
+      "reference_behavior": "For similar-to-last-food request, use previous food profile but exclude soups/dish_type soup if possible.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "For similar-to-last-food request, use previous food profile but exclude soups/dish_type soup if possible."
+      },
+      "parser_expectations": {
+        "dish_type_must_not_equal": "soup"
+      },
+      "retrieval_expectations": {
+        "must_not_have_metadata": {
+          "dish_type_contains": "soup"
+        },
+        "semantic_query_should_use_last_food_profile": true
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "not_soup_constraint",
+        "similarity_uses_ingredients_profile"
+      ]
+    },
+    {
+      "id": 45,
+      "category": "Health / Nutrition",
+      "question": "I am eating healthy this week, give me something high protein and low carb",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Apply High-Protein and Low-Carb concepts; avoid carb-heavy pasta/rice/bread when possible.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Apply High-Protein and Low-Carb concepts; avoid carb-heavy pasta/rice/bread when possible."
+      },
+      "parser_expectations": {
+        "healthy": true,
+        "diet_label_any": [
+          "High-Protein",
+          "Low-Carb"
+        ],
+        "semantic_query_must_not_contain": [
+          "healthy"
+        ]
+      },
+      "retrieval_expectations": {
+        "required_metadata_any": [
+          {
+            "diet_labels_contains": "High-Protein"
+          },
+          {
+            "diet_labels_contains": "Low-Carb"
+          }
+        ],
+        "must_exclude_terms": [
+          "pasta",
+          "rice",
+          "bread"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "healthy_not_in_semantic_query",
+        "low_carb_high_protein_preference"
+      ]
+    },
+    {
+      "id": 46,
+      "category": "Health / Nutrition",
+      "question": "What is a good post-workout meal that helps with muscle recovery?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Prefer high-protein foods and mention approximate match if dataset lacks explicit post-workout labels.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Prefer high-protein foods and mention approximate match if dataset lacks explicit post-workout labels."
+      },
+      "parser_expectations": {
+        "diet_label": "High-Protein",
+        "semantic_query_contains_any": [
+          "post-workout",
+          "muscle recovery",
+          "protein"
+        ]
+      },
+      "retrieval_expectations": {
+        "preferred_metadata_any": {
+          "diet_labels_contains": "High-Protein"
+        },
+        "preferred_context_terms": [
+          "protein",
+          "chicken",
+          "turkey",
+          "egg",
+          "yogurt",
+          "beans"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "protein_preference"
+      ]
+    },
+    {
+      "id": 47,
+      "category": "Health / Nutrition",
+      "question": "I have diabetes and need low sugar meal ideas",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Prefer Low Sugar if present, but avoid dessert/sweets and refined-sugar contexts; answer should emphasize dataset limitations if weak.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Prefer Low Sugar if present, but avoid dessert/sweets and refined-sugar contexts; answer should emphasize dataset limitations if weak."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_any": [
+          "diabetes",
+          "low sugar"
+        ],
+        "semantic_query_must_not_contain": [
+          "dessert"
+        ]
+      },
+      "retrieval_expectations": {
+        "preferred_metadata_any": {
+          "health_labels_contains": "Low Sugar"
+        },
+        "must_exclude_terms": [
+          "dessert",
+          "brownie",
+          "cake",
+          "cookie",
+          "sugar-free dessert",
+          "date roll",
+          "sweet roll"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "avoid_desserts_for_diabetes"
+      ]
+    },
+    {
+      "id": 48,
+      "category": "Time / Convenience",
+      "question": "What is a really easy meal I can make in under 15 minutes?",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Use under-15/easy as semantic constraints; exclude 20-minute/30-minute/one-hour recipes when possible.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Use under-15/easy as semantic constraints; exclude 20-minute/30-minute/one-hour recipes when possible."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_any": [
+          "under 15 minutes",
+          "15 minute",
+          "easy"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_exclude_terms": [
+          "20-minute",
+          "20 minute",
+          "30-minute",
+          "30 minute",
+          "one hour",
+          "1 hour"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "time_constraint_under_15"
+      ]
+    },
+    {
+      "id": 49,
+      "category": "Time / Convenience",
+      "question": "I need a meal I can batch cook for the whole week",
+      "expected_behavior": "recommend",
+      "reference_behavior": "Return meal-prep friendly dishes like chili, stew, casseroles, batch crockpot, soups; answer only with retrieved foods.",
+      "ragas": {
+        "use_for_ragas": true,
+        "ground_truth": "Return meal-prep friendly dishes like chili, stew, casseroles, batch crockpot, soups; answer only with retrieved foods."
+      },
+      "parser_expectations": {
+        "semantic_query_contains_any": [
+          "batch cook",
+          "meal prep",
+          "whole week"
+        ]
+      },
+      "retrieval_expectations": {
+        "must_include_or_context_terms": [
+          "batch",
+          "crockpot",
+          "slow cooker",
+          "chili",
+          "stew",
+          "casserole",
+          "soup"
+        ]
+      },
+      "answer_expectations": {},
+      "custom_checks": [
+        "meal_prep_context"
+      ]
+    },
+    {
+      "id": 50,
+      "category": "Edge Cases",
+      "question": "Surprise me with something completely random",
+      "expected_behavior": "follow_up",
+      "reference_behavior": "Ask a clarifying question for at least a meal type, ingredient, cuisine, or flavor instead of returning arbitrary random foods.",
+      "ragas": {
+        "use_for_ragas": false,
+        "ground_truth": "Ask a clarifying question for at least a meal type, ingredient, cuisine, or flavor instead of returning arbitrary random foods."
+      },
+      "parser_expectations": {
+        "semantic_query_should_be_empty_or_minimal": true
+      },
+      "retrieval_expectations": {},
+      "answer_expectations": {
+        "must_ask_for_any_of": [
+          "meal",
+          "ingredient",
+          "cuisine",
+          "flavor"
+        ]
+      },
+      "custom_checks": []
+    }
+  ]
+}
